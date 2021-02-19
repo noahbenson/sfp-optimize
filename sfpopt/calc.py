@@ -155,9 +155,9 @@ def calc_image_phi0(image_x_deg,     image_y_deg,
         elif direction in ('tangential', 'tan', 't'):
             phi = (image_angle_rad + np.pi/2)*4
         elif direction in ('horizontal', 'hrz', 'h'):
-            phi = np.full(sh, np.pi/2)
+            phi = image_x_deg
         elif direction in ('vertical', 'vrt', 'v'):
-            phi = np.full(sh, 0.0)
+            phi = image_y_deg
         else:
             raise ValueError("Could not understand direction parameter")
     else:
@@ -267,12 +267,12 @@ def loss(phi_deg, ang_rad, ecc_deg, params, pixels_per_degree, knob=0):
     b = beta(ang_rad, ecc_deg, theta, omega, params)
     # The loss is the variance of this prediction.
     const = 0 if knob is None else 2.0 ** knob
-    smoothloss = loss_smoothness(theta*2, circular=True)
+    smoothloss = loss_smoothness(b)
     return var(b) + const*smoothloss
 @pimms.calc('image')
 def calc_optimization(image_phi_deg, image_angle_rad, image_eccen_deg,
                       model_params, pixels_per_degree,
-                      steps=1000, lr=0.05, knob=0, vartrack=None):
+                      steps=2000, lr=0.0004, knob=-2, tracking=None):
     '''
     Calculates the result of optimizing the image_phi_deg for a certain number
     of steps.
@@ -280,6 +280,14 @@ def calc_optimization(image_phi_deg, image_angle_rad, image_eccen_deg,
     Afferent parameters:
       @ steps Specifies the number of steps to run the optimization.
       @ lr Specifies the learning rate to use in the optimization.
+      @ knob Specifies the relative weight of the angle-smoothness component of
+        the objective function relative to the variance component of the
+        objective function. Turn this up to prevent local high frequencies in
+        the output image. If knob is None, then the weight on the smoothness
+        component is 0; otherwise it is 2^knob times the weight on the variance
+        component.
+      @ tracking May be a mutable python list to which the loss is appended
+        after each step.
     '''
     opt = torch.optim.Adagrad([image_phi_deg], lr=lr)
     for step in range(steps):
@@ -287,8 +295,8 @@ def calc_optimization(image_phi_deg, image_angle_rad, image_eccen_deg,
             opt.zero_grad()
             l = loss(image_phi_deg, image_angle_rad, image_eccen_deg,
                      model_params, pixels_per_degree, knob=knob)
-            if vartrack is not None:
-                vartrack.append(float(l))
+            if tracking is not None:
+                tracking.append(float(l))
             l.backward()
             return l
         opt.step(closure)
