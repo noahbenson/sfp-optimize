@@ -151,9 +151,9 @@ def calc_image_phi0(image_x_deg,     image_y_deg,
     sh = image_x_deg.shape
     if pimms.is_str(direction):
         if direction in ('radial', 'rad', 'r'):
-            phi = safesqrt(0.2 + 6*max_eccen*image_eccen_deg)
+            phi = safesqrt(0.2 + 12*max_eccen*image_eccen_deg)
         elif direction in ('tangential', 'tan', 't'):
-            phi = (image_angle_rad + np.pi/2)*4
+            phi = (image_angle_rad + np.pi/2)*8
         elif direction in ('horizontal', 'hrz', 'h'):
             phi = image_x_deg
         elif direction in ('vertical', 'vrt', 'v'):
@@ -267,12 +267,12 @@ def loss(phi_deg, ang_rad, ecc_deg, params, pixels_per_degree, knob=0):
     b = beta(ang_rad, ecc_deg, theta, omega, params)
     # The loss is the variance of this prediction.
     const = 0 if knob is None else 2.0 ** knob
-    smoothloss = loss_smoothness(b)
+    smoothloss = loss_smoothness(phi_deg)
     return var(b) + const*smoothloss
 @pimms.calc('image')
 def calc_optimization(image_phi_deg, image_angle_rad, image_eccen_deg,
                       model_params, pixels_per_degree,
-                      steps=2000, lr=0.0004, knob=-2, tracking=None):
+                      steps=2000, lr=0.075, knob=6, tracking=None):
     '''
     Calculates the result of optimizing the image_phi_deg for a certain number
     of steps.
